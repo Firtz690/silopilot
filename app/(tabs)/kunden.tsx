@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function KundenScreen() {
   const [kunden, setKunden] = useState([]);
@@ -28,24 +29,22 @@ export default function KundenScreen() {
   const formLeeren = () => {
     setName(''); setAdresse(''); setZeiten(''); setProdukt('');
     setDruck(''); setSchlauch(''); setHinweis('');
-    setBearbeitenId(null);
-    setFormOffen(false);
+    setBearbeitenId(null); setFormOffen(false);
   };
 
   const kundeBearbeiten = (k) => {
     setName(k.name); setAdresse(k.adresse); setZeiten(k.zeiten);
     setProdukt(k.produkt); setDruck(k.druck); setSchlauch(k.schlauch);
-    setHinweis(k.hinweis); setBearbeitenId(k.id);
-    setFormOffen(true);
+    setHinweis(k.hinweis); setBearbeitenId(k.id); setFormOffen(true);
   };
 
   const kundeSpeichern = () => {
     if (!name) return;
     let neueKunden;
     if (bearbeitenId) {
-      neueKunden = kunden.map(k => k.id === bearbeitenId ? { id: bearbeitenId, name, adresse, zeiten, produkt, druck, schlauch, hinweis } : k);
+      neueKunden = kunden.map(k => k.id === bearbeitenId ? { ...k, name, adresse, zeiten, produkt, druck, schlauch, hinweis } : k);
     } else {
-      neueKunden = [...kunden, { id: Date.now(), name, adresse, zeiten, produkt, druck, schlauch, hinweis }];
+      neueKunden = [...kunden, { id: Date.now(), name, adresse, zeiten, produkt, druck, schlauch, hinweis, fotos: [] }];
     }
     speichern(neueKunden);
     formLeeren();
@@ -56,6 +55,28 @@ export default function KundenScreen() {
       { text: 'Abbrechen', style: 'cancel' },
       { text: 'Löschen', style: 'destructive', onPress: () => speichern(kunden.filter(k => k.id !== id)) }
     ]);
+  };
+
+  const fotoHinzufuegen = async (kundeId) => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Kamera', 'Kamera-Zugriff wird benötigt');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.5,
+      base64: false,
+    });
+    if (!result.canceled) {
+      const uri = result.assets[0].uri;
+      const neueKunden = kunden.map(k => k.id === kundeId ? { ...k, fotos: [...(k.fotos || []), uri] } : k);
+      speichern(neueKunden);
+    }
+  };
+
+  const fotoLoschen = (kundeId, fotoIndex) => {
+    const neueKunden = kunden.map(k => k.id === kundeId ? { ...k, fotos: k.fotos.filter((_, i) => i !== fotoIndex) } : k);
+    speichern(neueKunden);
   };
 
   return (
@@ -106,6 +127,22 @@ export default function KundenScreen() {
           {k.druck ? <View style={styles.infoRow}><Text style={styles.infoLabel}>Druck</Text><Text style={styles.infoValue}>{k.druck}</Text></View> : null}
           {k.schlauch ? <View style={styles.infoRow}><Text style={styles.infoLabel}>Schlauch</Text><Text style={styles.infoValue}>{k.schlauch}</Text></View> : null}
           {k.hinweis ? <View style={styles.warning}><Text style={styles.warningText}>⚠️ {k.hinweis}</Text></View> : null}
+
+          <View style={styles.fotoBereich}>
+            <TouchableOpacity style={styles.fotoBtn} onPress={() => fotoHinzufuegen(k.id)}>
+              <Text style={styles.fotoBtnText}>📷 Foto aufnehmen</Text>
+            </TouchableOpacity>
+            <View style={styles.fotoGrid}>
+              {(k.fotos || []).map((uri, index) => (
+                <View key={index} style={styles.fotoWrapper}>
+                  <Image source={{ uri }} style={styles.foto} />
+                  <TouchableOpacity style={styles.fotoLosch} onPress={() => fotoLoschen(k.id, index)}>
+                    <Text style={styles.fotoLoschText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
       ))}
     </ScrollView>
@@ -138,4 +175,12 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 12, color: '#333', flex: 1 },
   warning: { backgroundColor: '#FAEEDA', borderRadius: 8, padding: 10, marginTop: 10 },
   warningText: { fontSize: 12, color: '#854F0B' },
+  fotoBereich: { marginTop: 10, borderTopWidth: 0.5, borderTopColor: '#eee', paddingTop: 10 },
+  fotoBtn: { backgroundColor: '#E1F5EE', borderRadius: 8, padding: 10, alignItems: 'center' },
+  fotoBtnText: { fontSize: 13, color: '#0F6E56', fontWeight: '500' },
+  fotoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  fotoWrapper: { position: 'relative' },
+  foto: { width: 90, height: 90, borderRadius: 8 },
+  fotoLosch: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
+  fotoLoschText: { color: '#fff', fontSize: 11, fontWeight: '500' },
 });
