@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function HomeScreen() {
   const [touren, setTouren] = useState([]);
@@ -44,7 +44,10 @@ export default function HomeScreen() {
     speichern(touren.map(t => t.id === id ? { ...t, erledigt: !t.erledigt } : t));
   };
 
-  const tourLoschen = (id, kundenName) => {
+ const karteOeffnen = (adresse) => {
+    if (!adresse) return;
+    Linking.openURL(`https://maps.google.com/?q=${encodeURIComponent(adresse)}`);
+  }; const tourLoschen = (id, kundenName) => {
     Alert.alert('Tour löschen', `${kundenName} wirklich löschen?`, [
       { text: 'Abbrechen', style: 'cancel' },
       { text: 'Löschen', style: 'destructive', onPress: () => speichern(touren.filter(t => t.id !== id)) }
@@ -112,6 +115,7 @@ export default function HomeScreen() {
             <View style={{flex:1}}>
               <Text style={[styles.cardName, t.erledigt && styles.cardNameErledigt]}>{t.kunde}</Text>
               <Text style={styles.cardDetail}>{t.produkt} {t.menge ? '· ' + t.menge : ''}</Text>
+{t.adresse ? <TouchableOpacity onPress={() => karteOeffnen(t.adresse)}><Text style={styles.karteBtn}>📍 {t.adresse}</Text></TouchableOpacity> : null}
               {t.druck ? <Text style={styles.cardSilo}>🔧 {t.druck} · 📏 {t.schlauch}</Text> : null}
               {t.hinweis ? <Text style={styles.cardWarnung}>⚠️ {t.hinweis}</Text> : null}
             </View>
@@ -160,5 +164,5 @@ const styles = StyleSheet.create({
   cardWarnung: { fontSize: 11, color: '#854F0B', marginTop: 3 },
   badge: { backgroundColor: '#E1F5EE', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 11, color: '#0F6E56', fontWeight: '500' },
-  deleteBtn: { padding: 4 },
+  deleteBtn: { padding: 4 },karteBtn:{ fontSize: 12, color: '#185FA5', marginTop: 3 },
 });
